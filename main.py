@@ -16,7 +16,9 @@ def app():
     Application`s main entry point
     """
     print(__doc__)
+    print("Running application\n")
     scrapper.run()
+    print("\nExiting application")
 
 
 if __name__ == '__main__':

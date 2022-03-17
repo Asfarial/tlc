@@ -2,6 +2,7 @@
 Module for scrapping a website
 """
 from datetime import datetime
+import subprocess as sp
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -81,19 +82,14 @@ class Downloader:
 
     @staticmethod
     def __get_file_length_web(link: str):
-        tmp_filename = "tmp.txt"
-        os.system(f"wget --spider {link} &> {tmp_filename}")
-        file_length = 0
-        with open(f"{tmp_filename}", "r") as file:
-            for line in file:
-                if line.startswith("Length:"):
-                    file_length = int(line.split(" ")[1])
-                    break
-        os.remove(f"{tmp_filename}")
+        result = sp.getoutput(f"wget --spider {link}").split('\n')
+        file_length = None
+        if len(result) == 8:
+            file_length = int(result[5].split(" ")[1])
         return file_length
 
     @staticmethod
-    def __file_exists(link: str, filename:str, i: list = None):
+    def __file_exists(link: str, filename: str, i: list = None):
         file_length = Downloader.__get_file_length_web(link)
         if os.path.exists(filename):
             if os.path.getsize(filename) == file_length:
@@ -101,7 +97,7 @@ class Downloader:
                 return True
         message = f"Downloading file: {link}, Length: {file_length / 1024 / 1024:.2f} MB"
         if i:
-            print(f"[{i[0]}/{i[1]}]{message}")
+            print(f"[{i[0]}/{i[1]}] {message}")
         else:
             print(f"{message}")
         return False
@@ -154,4 +150,4 @@ def run(url: str = URL):
     scrapper = Scrapper(url)
     links = scrapper.get_links()
     downloader = Downloader()
-    downloader.download_files(links)
+    downloader.download_files(links, bypass=True)
