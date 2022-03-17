@@ -53,7 +53,6 @@ class Converter:
             return float(-404)
         return float(val)
 
-
     def convert(self, filename:str, format:str):
         df = pd.read_csv(filename, converters={
             'VendorID': self.conv_int,
