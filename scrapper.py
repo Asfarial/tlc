@@ -53,7 +53,8 @@ class Scrapper:
         links = {}
         for year in self.years:
             div_year = self.soup.find("div", {"id": f"faq{year}"})
-            links[year] = [a['href'] for a in div_year.find_all("a")]
+            links[year] = [a['href'] for a in div_year.find_all("a", {"title": "Yellow Taxi Trip Records"})]
+            links[year] += [a['href'] for a in div_year.find_all("a", {"title": "Green Taxi Trip Records"})]
         return links
 
 
