@@ -1,0 +1,34 @@
+{
+    "doc": "TLC",
+    "name": "GreenTaxi",
+    "namespace": "tlc",
+    "type": "record",
+    "fields": [
+        {"name": "VendorID", "type": "int"},
+        {
+            "name": "lpep_pickup_datetime",
+            "type": {"type": "string", "logicalType": "time-millis"}
+        },
+        {
+            "name": "lpep_dropoff_datetime",
+            "type": {"type": "string", "logicalType": "time-millis"}
+        },
+        {"name": "store_and_fwd_flag", "type": "string"},
+        {"name": "RatecodeID", "type": "int"},
+        {"name": "PULocationID", "type": "int"},
+        {"name": "DOLocationID", "type": "int"},
+        {"name": "passenger_count", "type": "int"},
+        {"name": "trip_distance", "type": "float"},
+        {"name": "fare_amount", "type": "float"},
+        {"name": "extra", "type": "float"},
+        {"name": "mta_tax", "type": "float"},
+        {"name": "tip_amount", "type": "float"},
+        {"name": "tolls_amount", "type": "float"},
+        {"name": "ehail_fee", "type": "float"},
+        {"name": "improvement_surcharge", "type": "float"},
+        {"name": "total_amount", "type": "float"},
+        {"name": "payment_type", "type": "int"},
+        {"name": "trip_type", "type": "int"},
+        {"name": "congestion_surcharge", "type": "float"}
+    ]
+}

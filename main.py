@@ -31,9 +31,9 @@ def app():
     """
     print(__doc__)
     print("Running application\n")
-    scrapper.run()
-    #converter = Converter()
-    #converter.convert("./records/2021/green_tripdata_2021-01.csv", "avro")
+    #scrapper.run()
+    converter = Converter()
+    converter.to_avro_orig("./records/2021/green_tripdata_2021-01.csv")
     # read_avro('./records/2021/green_tripdata_2021-01.avro')
     print("\nExiting application")
 

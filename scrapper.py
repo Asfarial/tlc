@@ -75,6 +75,11 @@ class Scrapper:
 
 
 class Downloader:
+    """
+    DOWNLOADER
+    yet has a way to improve using Celery
+    to have trackable downloads in background
+    """
     download_folder = "./records/"
 
     def __init__(self, download_folder: str = download_folder):

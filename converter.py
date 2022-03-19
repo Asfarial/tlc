@@ -1,8 +1,12 @@
 """
 Converter
 """
+import csv
+import os.path
+
 import pandas as pd
 from fastavro import writer, parse_schema
+from fastavro.schema import load_schema
 
 
 class Converter:
@@ -41,10 +45,13 @@ class Converter:
         ],
     }
 
+    def __init__(self):
+        print("Initializing Converter")
+
     @staticmethod
     def conv_int(val: str):
         if not val:
-            return -1
+            return 0
         return int(val)
 
     @staticmethod
@@ -56,10 +63,10 @@ class Converter:
     @staticmethod
     def conv_float(val: str):
         if not val:
-            return float(-404)
+            return 0
         return float(val)
 
-    def to_avro(self, filename: str):
+    def to_avro_orig(self, filename: str):
         chunksize = 1000000
         converters = {
             "VendorID": self.conv_int,
@@ -84,17 +91,19 @@ class Converter:
             "congestion_surcharge": self.conv_float,
         }
 
-        def reset_file(path):
+        def _reset_file(path):
             file = open(path, "wb")
             file.close()
 
         filename_avro = "." + filename.strip(".").split(".")[0] + ".avro"
-        parsed_schema = parse_schema(self.avro_schema)
-        reset_file(filename_avro)
+        parsed_schema = load_schema("tlc.GreenTaxi.avsc")
+        _reset_file(filename_avro)
         with pd.read_csv(
             filename, converters=converters, chunksize=chunksize
         ) as df:
             for chunk in df:
                 records = chunk.to_dict("records")
                 with open(filename_avro, "ab+") as out:
-                    writer(out, parsed_schema, records)
+                    writer(out, parsed_schema, records, codec="snappy")
+        with open("/".join(filename_avro.split("/")[:-1]+["log.txt"]), "w") as f:
+            f.write("avro")
