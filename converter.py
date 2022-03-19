@@ -1,49 +1,17 @@
 """
 Converter
 """
-import csv
-import os.path
-
+import os
+from os import listdir
+from os.path import isfile
+from scrapper import DOWNLOAD_FOLDER
+from logger import Logger
 import pandas as pd
-from fastavro import writer, parse_schema
+from fastavro import writer
 from fastavro.schema import load_schema
 
 
 class Converter:
-    avro_schema = {
-        "doc": "TLC",
-        "name": "Green Taxi",
-        "namespace": "tlc",
-        "type": "record",
-        "fields": [
-            {"name": "VendorID", "type": "int"},
-            {
-                "name": "lpep_pickup_datetime",
-                "type": {"type": "string", "logicalType": "time-millis"},
-            },
-            {
-                "name": "lpep_dropoff_datetime",
-                "type": {"type": "string", "logicalType": "time-millis"},
-            },
-            {"name": "store_and_fwd_flag", "type": "string"},
-            {"name": "RatecodeID", "type": "int"},
-            {"name": "PULocationID", "type": "int"},
-            {"name": "DOLocationID", "type": "int"},
-            {"name": "passenger_count", "type": "int"},
-            {"name": "trip_distance", "type": "float"},
-            {"name": "fare_amount", "type": "float"},
-            {"name": "extra", "type": "float"},
-            {"name": "mta_tax", "type": "float"},
-            {"name": "tip_amount", "type": "float"},
-            {"name": "tolls_amount", "type": "float"},
-            {"name": "ehail_fee", "type": "float"},
-            {"name": "improvement_surcharge", "type": "float"},
-            {"name": "total_amount", "type": "float"},
-            {"name": "payment_type", "type": "int"},
-            {"name": "trip_type", "type": "int"},
-            {"name": "congestion_surcharge", "type": "float"},
-        ],
-    }
 
     def __init__(self):
         print("Initializing Converter")
@@ -66,7 +34,7 @@ class Converter:
             return 0
         return float(val)
 
-    def to_avro_orig(self, filename: str):
+    def to_avro(self, filename: str):
         chunksize = 1000000
         converters = {
             "VendorID": self.conv_int,
@@ -95,6 +63,9 @@ class Converter:
             file = open(path, "wb")
             file.close()
 
+        if not os.path.exists(filename):
+            raise FileNotFoundError(filename)
+
         filename_avro = "." + filename.strip(".").split(".")[0] + ".avro"
         parsed_schema = load_schema("tlc.GreenTaxi.avsc")
         _reset_file(filename_avro)
@@ -105,5 +76,41 @@ class Converter:
                 records = chunk.to_dict("records")
                 with open(filename_avro, "ab+") as out:
                     writer(out, parsed_schema, records, codec="snappy")
-        with open("/".join(filename_avro.split("/")[:-1]+["log.txt"]), "w") as f:
-            f.write("avro")
+        Logger(filename, "avro")
+
+    def read_avro(self, filename: str):
+        import fastavro
+        import pandas as pd
+
+        avro_records = []
+        with open(filename, "rb") as f:
+            avro_reader = fastavro.reader(f)
+            for record in avro_reader:
+                avro_records.append(record)
+        df_avro = pd.DataFrame(avro_records)
+        print(df_avro.head())
+
+    def convert_all(self):
+        all_files = self._get_all_csv()
+        if not (l:=len(all_files)):
+            print("No files to convert")
+            return
+        print("Converting csv files to avro")
+        for i, file in enumerate(all_files, 1):
+            print(f"{i}/{l}) {file}")
+            self.to_avro(file)
+            print(f"Successfully converted\n"
+                  f"Deleting csv file")
+            os.remove(file)
+
+    def _get_all_csv(self, download_folder:str = DOWNLOAD_FOLDER):
+        print("Collecting all csv filenames")
+        def make_filename(base,file):
+            return "/".join([base, file])
+        folders = listdir(download_folder)
+        folders = ["".join([download_folder, f]) for f in folders]
+        return [full_file for folder in folders for file in listdir(folder) if file.split('.')[-1]=='csv' if isfile((full_file := make_filename(folder, file)))]
+
+def run():
+    converter = Converter()
+    converter.convert_all()

@@ -2,13 +2,13 @@
 Module for scrapping a website
 """
 from datetime import datetime
-import subprocess as sp
 import os
 import requests
 from bs4 import BeautifulSoup
+from logger import Logger
 
 URL = "https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
-
+DOWNLOAD_FOLDER = "./records/"
 
 class Scrapper:
     def __init__(self, url: str, years: int = 3):
@@ -80,7 +80,7 @@ class Downloader:
     yet has a way to improve using Celery
     to have trackable downloads in background
     """
-    download_folder = "./records/"
+    download_folder = DOWNLOAD_FOLDER
 
     def __init__(self, download_folder: str = download_folder):
         print("Initializing Downloader")
@@ -113,6 +113,13 @@ class Downloader:
         if os.path.exists(filename):
             if os.path.getsize(filename) == file_web_length_bytes:
                 return True
+
+        if os.path.exists((log_filename:=Logger(filename).filename)):
+            formats = ['csv', 'avro', 'parquet']
+            with open(log_filename, "r") as f:
+                if (format_name:=f.readline().strip()) in formats:
+                    if os.path.exists("."+filename.split(".")[1]+"."+format_name):
+                        return True
         return False
 
     @staticmethod
@@ -132,8 +139,9 @@ class Downloader:
                 for chunk in r.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
                     progress += chunk_size / 1024 / 1024
-                    print(f"\r{progress:.2f}MB/{file_web_length:.2f}MB", end='')
+                    print(f"\r{file_web_length if progress>file_web_length else progress:.2f}MB/{file_web_length:.2f}MB", end='')
         print("")
+        Logger(filename, "csv")
 
     @staticmethod
     def __get_links_count(links):
@@ -172,8 +180,7 @@ class Downloader:
             message = f"Resuming file download: {link}," \
                       f" Size: {start_pos_bytes/ 1024 / 1024:.2f}MB/{file_web_length:.2f} MB"
         elif downloaded:
-            message = f"File is already downloaded: {link}," \
-                      f" Size: {file_web_length:.2f} MB"
+            message = f"File is already downloaded: {link}"
         else:
             message = f"Downloading file: {link}," \
                   f" Size: {file_web_length:.2f} MB"
