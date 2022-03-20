@@ -6,9 +6,11 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from logger import Logger
+from converter import Converter
+from config import FORMATS
+from config import URL, DOWNLOAD_FOLDER
 
-URL = "https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page"
-DOWNLOAD_FOLDER = "./records/"
+
 
 class Scrapper:
     def __init__(self, url: str, years: int = 3):
@@ -107,24 +109,22 @@ class Downloader:
         r = requests.head(link)
         file_web_length = int(r.headers.get('content-length', 0))
         return file_web_length
-
     @staticmethod
     def __file_is_downloaded(filename: str, file_web_length_bytes: int):
         if os.path.exists(filename):
             if os.path.getsize(filename) == file_web_length_bytes:
                 return True
 
-        if os.path.exists((log_filename:=Logger(filename).filename)):
-            formats = ['csv', 'avro', 'parquet']
-            with open(log_filename, "r") as f:
-                if (format_name:=f.readline().strip()) in formats:
-                    if os.path.exists("."+filename.split(".")[1]+"."+format_name):
-                        return True
+        logger = Logger(filename)
+        if logger.log_exists:
+            if (format_name:=logger.get_file_format()) in FORMATS:
+                if os.path.exists(Converter.change_filename_extension(filename, format_name)):
+                    return True
         return False
 
     @staticmethod
     def __download(link: str, filename: str, file_web_length_bytes: int, i: list = None):
-        chunk_size = 65536
+        chunk_size = 655360
         file_web_length = file_web_length_bytes / 1024 / 1024
         start_pos_bytes = os.path.getsize(filename) if os.path.exists(filename) else 0
         resume_header = ({'Range': f'bytes={start_pos_bytes}-'}
@@ -141,7 +141,7 @@ class Downloader:
                     progress += chunk_size / 1024 / 1024
                     print(f"\r{file_web_length if progress>file_web_length else progress:.2f}MB/{file_web_length:.2f}MB", end='')
         print("")
-        Logger(filename, "csv")
+        Logger(filename).record_file_type("csv")
 
     @staticmethod
     def __get_links_count(links):
@@ -208,8 +208,8 @@ class Downloader:
             Downloader.__iterator(links)
 
 
-def run(url: str = URL):
+def run(url: str = URL, bypass: bool = False):
     scrapper = Scrapper(url)
     links = scrapper.get_links()
     downloader = Downloader()
-    downloader.download_files(links, bypass=True)
+    downloader.download_files(links, bypass=bypass)

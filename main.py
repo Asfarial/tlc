@@ -8,9 +8,9 @@ The app will:
 4) Have interface for 3 standard queries
 5) Have interface for >= 3 years of NYC TLC datasets download
 """
+
 import scrapper
 import converter
-
 
 def app():
     """
@@ -18,7 +18,7 @@ def app():
     """
     print(__doc__)
     print("Running application\n")
-    scrapper.run()
+    scrapper.run(bypass=True)
     converter.run()
     print("\nExiting application")
 

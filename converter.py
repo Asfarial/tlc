@@ -4,11 +4,13 @@ Converter
 import os
 from os import listdir
 from os.path import isfile
-from scrapper import DOWNLOAD_FOLDER
+from config import DOWNLOAD_FOLDER
 from logger import Logger
 import pandas as pd
-from fastavro import writer
+from fastavro import writer, reader
 from fastavro.schema import load_schema
+import pyarrow.parquet as pq
+from fastparquet import write
 
 
 class Converter:
@@ -34,7 +36,7 @@ class Converter:
             return 0
         return float(val)
 
-    def to_avro(self, filename: str):
+    def csv_to_avro(self, filename: str):
         chunksize = 1000000
         converters = {
             "VendorID": self.conv_int,
@@ -76,19 +78,25 @@ class Converter:
                 records = chunk.to_dict("records")
                 with open(filename_avro, "ab+") as out:
                     writer(out, parsed_schema, records, codec="snappy")
-        Logger(filename, "avro")
+
+    def avro_to_parquet(self, filename: str):
+        df = self.read_avro(filename)
+        parquet_filename = self.change_filename_extension(filename, "parquet")
+        write(parquet_filename, df, compression='snappy')
+
+
+
+    def read_parquet(self, filename: str):
+        table = pq.read_table(filename)
+        df = table.to_pandas()
+        return df
 
     def read_avro(self, filename: str):
-        import fastavro
-        import pandas as pd
-
-        avro_records = []
         with open(filename, "rb") as f:
-            avro_reader = fastavro.reader(f)
-            for record in avro_reader:
-                avro_records.append(record)
-        df_avro = pd.DataFrame(avro_records)
-        print(df_avro.head())
+            avro_reader = reader(f)
+            avro_records = [record for record in avro_reader]
+            df_avro = pd.DataFrame(avro_records)
+            return df_avro
 
     def convert_all(self):
         all_files = self._get_all_csv()
@@ -98,18 +106,25 @@ class Converter:
         print("Converting csv files to avro")
         for i, file in enumerate(all_files, 1):
             print(f"{i}/{l}) {file}")
-            self.to_avro(file)
+            self.csv_to_avro(file)
             print(f"Successfully converted\n"
                   f"Deleting csv file")
+            Logger(file).record_file_type("avro")
             os.remove(file)
 
     def _get_all_csv(self, download_folder:str = DOWNLOAD_FOLDER):
         print("Collecting all csv filenames")
+
         def make_filename(base,file):
             return "/".join([base, file])
+
         folders = listdir(download_folder)
         folders = ["".join([download_folder, f]) for f in folders]
         return [full_file for folder in folders for file in listdir(folder) if file.split('.')[-1]=='csv' if isfile((full_file := make_filename(folder, file)))]
+
+    @staticmethod
+    def change_filename_extension(filename: str, extension: str):
+        return "." + filename.strip(".").split(".")[0] + "." + extension.strip(".")
 
 def run():
     converter = Converter()
