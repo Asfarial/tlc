@@ -14,6 +14,33 @@ from fastparquet import write
 
 
 class Converter:
+    chunksize = 1000000
+
+    @property
+    def converters(self):
+        converters = {
+            "VendorID": self.conv_int,
+            "lpep_pickup_datetime": self.conv_str,
+            "lpep_dropoff_datetime": self.conv_str,
+            "store_and_fwd_flag": self.conv_str,
+            "RatecodeID": self.conv_int,
+            "PULocationID": self.conv_int,
+            "DOLocationID": self.conv_int,
+            "passenger_count": self.conv_int,
+            "trip_distance": self.conv_float,
+            "fare_amount": self.conv_float,
+            "extra": self.conv_float,
+            "mta_tax": self.conv_float,
+            "tip_amount": self.conv_float,
+            "tolls_amount": self.conv_float,
+            "ehail_fee": self.conv_float,
+            "improvement_surcharge": self.conv_float,
+            "total_amount": self.conv_float,
+            "payment_type": self.conv_int,
+            "trip_type": self.conv_int,
+            "congestion_surcharge": self.conv_float,
+        }
+        return converters
 
     def __init__(self):
         print("Initializing Converter")
@@ -37,54 +64,46 @@ class Converter:
         return float(val)
 
     def csv_to_avro(self, filename: str):
-        chunksize = 1000000
-        converters = {
-            "VendorID": self.conv_int,
-            "lpep_pickup_datetime": self.conv_str,
-            "lpep_dropoff_datetime": self.conv_str,
-            "store_and_fwd_flag": self.conv_str,
-            "RatecodeID": self.conv_int,
-            "PULocationID": self.conv_int,
-            "DOLocationID": self.conv_int,
-            "passenger_count": self.conv_int,
-            "trip_distance": self.conv_float,
-            "fare_amount": self.conv_float,
-            "extra": self.conv_float,
-            "mta_tax": self.conv_float,
-            "tip_amount": self.conv_float,
-            "tolls_amount": self.conv_float,
-            "ehail_fee": self.conv_float,
-            "improvement_surcharge": self.conv_float,
-            "total_amount": self.conv_float,
-            "payment_type": self.conv_int,
-            "trip_type": self.conv_int,
-            "congestion_surcharge": self.conv_float,
-        }
-
-        def _reset_file(path):
-            file = open(path, "wb")
-            file.close()
-
-        if not os.path.exists(filename):
-            raise FileNotFoundError(filename)
-
+        self._check_file_exists(filename)
         filename_avro = "." + filename.strip(".").split(".")[0] + ".avro"
         parsed_schema = load_schema("tlc.GreenTaxi.avsc")
-        _reset_file(filename_avro)
+        self._reset_file(filename_avro)
         with pd.read_csv(
-            filename, converters=converters, chunksize=chunksize
+            filename, converters=self.converters, chunksize=self.chunksize
         ) as df:
             for chunk in df:
                 records = chunk.to_dict("records")
                 with open(filename_avro, "ab+") as out:
                     writer(out, parsed_schema, records, codec="snappy")
+        Logger(filename).record_file_type("avro")
+        os.remove(filename)
+        return filename_avro
+
+    def _check_file_exists(self, filename):
+        if not os.path.exists(filename):
+            raise FileNotFoundError(filename)
+
+    def _reset_file(self, path):
+        file = open(path, "wb")
+        file.close()
+
+    def csv_to_parquet(self, filename:str):
+        self._check_file_exists(filename)
+        filename_parquet = "." + filename.strip(".").split(".")[0] + ".parquet"
+        self._reset_file(filename_parquet)
+        df = pd.read_csv(filename, converters=self.converters)
+        df.to_parquet(filename_parquet)
+        Logger(filename).record_file_type("parquet")
+        os.remove(filename)
+        return filename_parquet
 
     def avro_to_parquet(self, filename: str):
         df = self.read_avro(filename)
         parquet_filename = self.change_filename_extension(filename, "parquet")
         write(parquet_filename, df, compression='snappy')
-
-
+        Logger(filename).record_file_type("parquet")
+        os.remove(filename)
+        return parquet_filename
 
     def read_parquet(self, filename: str):
         table = pq.read_table(filename)
@@ -103,14 +122,10 @@ class Converter:
         if not (l:=len(all_files)):
             print("No files to convert")
             return
-        print("Converting csv files to avro")
+        print("Converting files")
         for i, file in enumerate(all_files, 1):
             print(f"{i}/{l}) {file}")
-            self.csv_to_avro(file)
-            print(f"Successfully converted\n"
-                  f"Deleting csv file")
-            Logger(file).record_file_type("avro")
-            os.remove(file)
+            self.csv_to_parquet(file)
 
     def _get_all_csv(self, download_folder:str = DOWNLOAD_FOLDER):
         print("Collecting all csv filenames")
