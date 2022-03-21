@@ -12,31 +12,40 @@ The app will:
 4.3) Day of week with the lowest number of single rider trips
 """
 
-import scrapper
-import converter
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg
+from app import scrapper, converter
 
 
-def queries():
+def queries() -> None:
+    """
+    Quering Examples Function
+    """
     # Quering example
-    spark = SparkSession.builder.getOrCreate()
-    data = spark.read.parquet('./records/2021/green_tripdata_2021-01.parquet')
+    spark = SparkSession.builder.appName("Application name").enableHiveSupport().getOrCreate()
+    data = spark.read.parquet("./records/2021/green_tripdata_2021-01.parquet")
 
     # average trip distance
-    data.select('trip_distance').agg(avg(col("trip_distance"))).show()
+    data.select("trip_distance").agg(avg(col("trip_distance"))).show()
 
     # Busiest hours
     data.createOrReplaceTempView("parquetFile")
     spark.sql(
-        "SELECT hour(timestamp(lpep_pickup_datetime)) AS hour, COUNT(*) as occurance FROM parquetFile GROUP BY hour ORDER BY occurance DESC LIMIT 3").show()
+        "SELECT hour(timestamp(lpep_pickup_datetime)) AS hour,"
+        " COUNT(*) as occurance FROM parquetFile"
+        " GROUP BY hour ORDER BY occurance DESC LIMIT 3"
+    ).show()
 
     # Day of week with the lowest number of single rider trips
     spark.sql(
-        "SELECT dayofweek(timestamp(lpep_pickup_datetime)) AS day, COUNT(*) as occurance FROM parquetFile WHERE passenger_count = 1 GROUP BY day ORDER BY occurance ASC LIMIT 1").show()
+        "SELECT dayofweek(timestamp(lpep_pickup_datetime)) AS day,"
+        " COUNT(*) as occurance FROM parquetFile"
+        " WHERE passenger_count = 1 GROUP BY day"
+        " ORDER BY occurance ASC LIMIT 1"
+    ).show()
 
 
-def app():
+def app() -> None:
     """
     Application`s main entry point
     """

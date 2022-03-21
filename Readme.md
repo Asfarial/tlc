@@ -44,6 +44,12 @@ Converter.py
 Logger.py
     
     Logger - to keep track of actual file format
+
+Utils.py
+
+    Additional utils:
+    - Simple decorator to get function/method execution time
+
 ----
 
 Data Schema:
